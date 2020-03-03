@@ -1,22 +1,21 @@
-using System;
-using System.IO;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace DocService
 {
     public static class CallbackPut
     {
         [FunctionName("CallbackPut")]
-        public static ActionResult Run(
-            [HttpTrigger(AuthorizationLevel.Function, "put", Route = "callback/{id}")] HttpRequest req, string id,
+        public static async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Function, "put", Route = "callback/{id}")] HttpRequest req,
             [CosmosDB(databaseName: "doc", collectionName: "doc", Id = "{id}", PartitionKey = "shard", ConnectionStringSetting = "connection")] Models.StatusObj statusObj,
-            [CosmosDB(databaseName: "doc", collectionName: "doc", ConnectionStringSetting = "connection")]out dynamic item,
+            [CosmosDB(databaseName: "doc", collectionName: "doc", ConnectionStringSetting = "connection")] IAsyncCollector<Models.StatusObj> item,
             ILogger log)
         {
             log.LogInformation("DocService function PUT /callback");
@@ -29,12 +28,16 @@ namespace DocService
             {
                 log.LogWarning("TODO: Better exception handling");
             }
+            finally
+            {
+                if (requestBody != "") { 
+                    dynamic data = JsonConvert.DeserializeObject(requestBody);
+                    statusObj.Status = data.status;
+                    statusObj.Detail = data.detail;
+                }
 
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
-            statusObj.Status = data.status;
-            statusObj.Detail = data.detail;
-
-            item = statusObj;
+                await item.AddAsync(statusObj);
+            }
 
             return string.IsNullOrEmpty(requestBody)
                 ? new BadRequestObjectResult("error")
