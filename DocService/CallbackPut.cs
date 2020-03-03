@@ -17,15 +17,16 @@ namespace DocService
             [HttpTrigger(AuthorizationLevel.Function, "put", Route = "callback/{id}")] HttpRequest req, string id,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
- 
+            log.LogInformation("DocService function PUT /callback");
+
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
             string status = data?.status;
             string detail = data?.detail;
 
-            string responseMessage = string.IsNullOrEmpty(status)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
+            // should check for issues with body object
+            string responseMessage = string.IsNullOrEmpty(id)
+                ? "id not found or missing"
                 : $"{status}, {detail}, {id}";
 
             return new OkObjectResult(responseMessage);
