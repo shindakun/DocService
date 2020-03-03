@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 
 namespace DocService
 {
-    class Models
+    public class Models
     {
         public class StatusObj
         {

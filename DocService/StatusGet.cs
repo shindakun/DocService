@@ -15,24 +15,17 @@ namespace DocService
         [FunctionName("StatusGet")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "status/{id}")] HttpRequest req, string id,
+            [CosmosDB(databaseName: "doc", collectionName: "doc", Id = "{id}", PartitionKey = "shard", ConnectionStringSetting = "connection")] Models.StatusObj statusObj,
             ILogger log)
         {
             log.LogInformation("DocService function GET /status");
 
-            var obj = new Models.StatusObj
-            {
-                Status = "status",
-                Detail = "detail",
-                Body = "body",
-            };
+            string json = JsonConvert.SerializeObject(statusObj);
+            log.LogInformation(json);
 
-            string json = JsonConvert.SerializeObject(obj);
-
-            string responseMessage = string.IsNullOrEmpty(id)
-                ? "id not found or missing"
-                : $"{id} {json}";
-
-            return new OkObjectResult(responseMessage);
+            return json == "null" 
+                ? new BadRequestObjectResult("error or id not found")
+                : (ActionResult)new OkObjectResult($"{json}");
         }
     }
 }
