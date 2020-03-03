@@ -13,23 +13,32 @@ namespace DocService
     public static class CallbackPut
     {
         [FunctionName("CallbackPut")]
-        public static async Task<IActionResult> Run(
+        public static ActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, "put", Route = "callback/{id}")] HttpRequest req, string id,
+            [CosmosDB(databaseName: "doc", collectionName: "doc", Id = "{id}", PartitionKey = "shard", ConnectionStringSetting = "connection")] Models.StatusObj statusObj,
+            [CosmosDB(databaseName: "doc", collectionName: "doc", ConnectionStringSetting = "connection")]out dynamic item,
             ILogger log)
         {
             log.LogInformation("DocService function PUT /callback");
+            string requestBody = "";
+            try
+            {
+                requestBody = new StreamReader(req.Body).ReadToEnd();
+            }
+            catch
+            {
+                log.LogWarning("TODO: Better exception handling");
+            }
 
-            string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             dynamic data = JsonConvert.DeserializeObject(requestBody);
-            string status = data?.status;
-            string detail = data?.detail;
+            statusObj.Status = data.status;
+            statusObj.Detail = data.detail;
 
-            // should check for issues with body object
-            string responseMessage = string.IsNullOrEmpty(id)
-                ? "id not found or missing"
-                : $"{status}, {detail}, {id}";
+            item = statusObj;
 
-            return new OkObjectResult(responseMessage);
+            return string.IsNullOrEmpty(requestBody)
+                ? new BadRequestObjectResult("error")
+                : (ActionResult)new NoContentResult();
         }
     }
 }
